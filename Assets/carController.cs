@@ -33,7 +33,7 @@ public class CarController : MonoBehaviour
         rb.centerOfMass = new Vector3(0, -0.5f, 0);
 
         // Freeze tipping (X & Z rotation)
-        rb.constraints = RigidbodyConstraints.FreezeRotationX | RigidbodyConstraints.FreezeRotationZ;
+        //rb.constraints = RigidbodyConstraints.FreezeRotationX | RigidbodyConstraints.FreezeRotationZ;
 
         // Adjust wheel grip
         AdjustFriction(2f);
