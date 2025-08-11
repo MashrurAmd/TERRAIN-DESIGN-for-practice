@@ -1,24 +1,43 @@
 using System;
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 
 public class CarController : MonoBehaviour
 {
+    // Inputs
     private float horizontalInput, verticalInput;
-    private float currentSteerAngle, currentbreakForce;
-    private bool isBreaking;
+    private float currentSteerAngle, currentBrakeForce;
+    private bool isBraking;
 
     // Settings
-    [SerializeField] private float motorForce, breakForce, maxSteerAngle;
+    [SerializeField] private float motorForce = 1500f;
+    [SerializeField] private float brakeForce = 3000f;
+    [SerializeField] private float maxSteerAngle = 30f;
+    [SerializeField] private float downforce = 100f;
 
     // Wheel Colliders
     [SerializeField] private WheelCollider frontLeftWheelCollider, frontRightWheelCollider;
     [SerializeField] private WheelCollider rearLeftWheelCollider, rearRightWheelCollider;
 
-    // Wheels
+    // Wheel Meshes
     [SerializeField] private Transform frontLeftWheelTransform, frontRightWheelTransform;
     [SerializeField] private Transform rearLeftWheelTransform, rearRightWheelTransform;
+
+    // Rigidbody reference
+    private Rigidbody rb;
+
+    private void Start()
+    {
+        rb = GetComponent<Rigidbody>();
+
+        // Lower the center of mass for stability
+        rb.centerOfMass = new Vector3(0, -0.5f, 0);
+
+        // Freeze tipping (X & Z rotation)
+        rb.constraints = RigidbodyConstraints.FreezeRotationX | RigidbodyConstraints.FreezeRotationZ;
+
+        // Adjust wheel grip
+        AdjustFriction(2f);
+    }
 
     private void FixedUpdate()
     {
@@ -26,38 +45,37 @@ public class CarController : MonoBehaviour
         HandleMotor();
         HandleSteering();
         UpdateWheels();
+
+        // Add downforce based on speed
+        rb.AddForce(-transform.up * downforce * rb.velocity.magnitude);
     }
 
     private void GetInput()
     {
-        // Steering Input
         horizontalInput = Input.GetAxis("Horizontal");
-
-        // Acceleration Input
         verticalInput = Input.GetAxis("Vertical");
-
-        // Breaking Input
-        isBreaking = Input.GetKey(KeyCode.Space);
+        isBraking = Input.GetKey(KeyCode.Space);
     }
 
     private void HandleMotor()
     {
+        // Apply torque to all wheels (AWD)
         frontLeftWheelCollider.motorTorque = verticalInput * motorForce;
         frontRightWheelCollider.motorTorque = verticalInput * motorForce;
         rearLeftWheelCollider.motorTorque = verticalInput * motorForce;
         rearRightWheelCollider.motorTorque = verticalInput * motorForce;
 
-
-        currentbreakForce = isBreaking ? breakForce : 0f;
-        ApplyBreaking();
+        // Apply brake force
+        currentBrakeForce = isBraking ? brakeForce : 0f;
+        ApplyBraking();
     }
 
-    private void ApplyBreaking()
+    private void ApplyBraking()
     {
-        frontRightWheelCollider.brakeTorque = currentbreakForce;
-        frontLeftWheelCollider.brakeTorque = currentbreakForce;
-        rearLeftWheelCollider.brakeTorque = currentbreakForce;
-        rearRightWheelCollider.brakeTorque = currentbreakForce;
+        frontLeftWheelCollider.brakeTorque = currentBrakeForce;
+        frontRightWheelCollider.brakeTorque = currentBrakeForce;
+        rearLeftWheelCollider.brakeTorque = currentBrakeForce;
+        rearRightWheelCollider.brakeTorque = currentBrakeForce;
     }
 
     private void HandleSteering()
@@ -71,8 +89,8 @@ public class CarController : MonoBehaviour
     {
         UpdateSingleWheel(frontLeftWheelCollider, frontLeftWheelTransform);
         UpdateSingleWheel(frontRightWheelCollider, frontRightWheelTransform);
-        UpdateSingleWheel(rearRightWheelCollider, rearRightWheelTransform);
         UpdateSingleWheel(rearLeftWheelCollider, rearLeftWheelTransform);
+        UpdateSingleWheel(rearRightWheelCollider, rearRightWheelTransform);
     }
 
     private void UpdateSingleWheel(WheelCollider wheelCollider, Transform wheelTransform)
@@ -80,7 +98,28 @@ public class CarController : MonoBehaviour
         Vector3 pos;
         Quaternion rot;
         wheelCollider.GetWorldPose(out pos, out rot);
-        wheelTransform.rotation = rot;
         wheelTransform.position = pos;
+        wheelTransform.rotation = rot;
+    }
+
+    private void AdjustFriction(float stiffness)
+    {
+        WheelFrictionCurve forward = frontLeftWheelCollider.forwardFriction;
+        WheelFrictionCurve sideways = frontLeftWheelCollider.sidewaysFriction;
+
+        forward.stiffness = stiffness;
+        sideways.stiffness = stiffness;
+
+        frontLeftWheelCollider.forwardFriction = forward;
+        frontLeftWheelCollider.sidewaysFriction = sideways;
+
+        frontRightWheelCollider.forwardFriction = forward;
+        frontRightWheelCollider.sidewaysFriction = sideways;
+
+        rearLeftWheelCollider.forwardFriction = forward;
+        rearLeftWheelCollider.sidewaysFriction = sideways;
+
+        rearRightWheelCollider.forwardFriction = forward;
+        rearRightWheelCollider.sidewaysFriction = sideways;
     }
 }
